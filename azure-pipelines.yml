@@ -1,0 +1,2188 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "16 13 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+variables:
+- name: Project_name
+  value: 'nodegoatapp'
+- name: IASP_moduleID
+  value: 'MODULE_456'
+- name: IASP_uniqueAppID
+  value: 'IASP_216'
+- name: IASP_scanType
+  value: 'SAST'
+
+steps:
+- script: |
+    echo $(Build.Repository.LocalPath)
+  displayName: 'Build Repository local path'
+
+- script: |
+    curl --request POST https://appsecastro.auth.us-east-1.amazoncognito.com/oauth2/token --header Content-Type:application/x-www-form-urlencoded --data-urlencode 'grant_type=client_credentials' -d 'client_id=3aeg3155p5vr4v28r8a0tepvei' -d 'client_secret=856duh8kg6go1shhkvp4or8i7m4tceq9ki2bv2alhrqrldjuk7e' > ../../../../IASP_files/access_token.json && cat ../../../../IASP_files/access_token.json | jq -r '.access_token'> ../../../../IASP_files/tk2.txt
+  displayName: 'Generating IASP Token'
+
+
+# IASP accepts only ['zip', 'rar', 'war', 'jar', 'ear']
+- script: |
+      zip -r $(Project_name).zip * -v -x /*.git -x azure-pipelines.yml
+  displayName: 'Zipping Project'
+
+- script: |
+      . /home/realroot/IASP_files/script.sh && echo $accesstoken && curl --location --request POST 'https://iasp-demo-filetransfer.vipr-appsec.com/file-transfer-service/file' --header "Authorization: $accesstoken" --header 'clientID: 16' --header 'externalTransactionId: 56' --header 'action: upload' --header 'Cookie: AWSALB=QlmZg1suXQGvu+kULJC24Y8CKjOUbYf8F8t0dZ5fPFXxYO67ujeSI3XlhAR29RBU0jkUIYHHjqsIxMEnyYTOTwEeGiqVZVsJ12p+GJt/VJ0CSJIeaxGC15hHUuE3; AWSALBCORS=QlmZg1suXQGvu+kULJC24Y8CKjOUbYf8F8t0dZ5fPFXxYO67ujeSI3XlhAR29RBU0jkUIYHHjqsIxMEnyYTOTwEeGiqVZVsJ12p+GJt/VJ0CSJIeaxGC15hHUuE3' --form 'data=@"/home/realroot/myagent/_work/13/s/nodegoatapp.zip"' --form 'uniqueAppID="IASP_216"' --form 'moduleID="MODULE_456"' --form 'fileType="src"' --form 'fileName="nodegoatapp.zip"'
+  displayName: 'Upload zip to S3 Bucket'
+
+- script: |
+    . /home/realroot/IASP_files/script.sh && echo $accesstoken && curl --location --request POST 'https://kdo1g44cac.execute-api.us-east-1.amazonaws.com/scan-automation-services/scan' --header 'clientid: 16' --header 'externaltransactionId: ScanResults' --header 'content-type: application/json' --header "Authorization: Bearer $accesstoken" --data-raw '{"uniqueAppID":"$(IASP_uniqueAppID)","scanType":"$(IASP_scanType)","moduleID":"$(IASP_moduleID)"}'
+  displayName: 'Start new Scan'
+
+
+
+# - script: |
+#     cd $(Build.Repository.LocalPath) && pwd
+#  && dotnet restore
+# # && docker build -t customer-history-api .
+
+# - script: |
+#       tar -hcvzf $(Project_name).tar.gz --exclude=/.git $(Build.Repository.LocalPath)/*
+#   displayName: 'Zip project'
+
+# - task: Veracode@3
+#   inputs:
+#     ConnectionDetailsSelection: 'Credentials'
+#     apiId: '$(veracode_apiid)'
+#     apiKey: '$(veracode_apikey)'
+#     veracodeAppProfile: '$(Project_name)'
+#     version: '$(build.buildNumber)'
+#     filepath: '$(Project_name).tar.gz'
+#     createProfile: true
+#     maximumWaitTime: '360'
+
+# # # step do SCA
+# - task: CmdLine@2
+#   inputs:
+#     script: 'srcclr scan $(Build.Repository.LocalPath) --update-advisor'
+
+
+-------------------atis_api---------------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "16 13 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+variables:
+# - name: zap_url_scan
+#   value: ''
+- name: DefectDJ_Eng_ID
+  value: '88'
+- name: DefectDJ_Product_ID
+  value: '5'
+- name: Project_name
+  value: 'Atis_api'
+
+jobs:
+- job: A
+  steps:
+
+  - script: |
+      cd $(Build.Repository.LocalPath) && pwd
+# # && docker build -t customer-history-api .
+
+  - script: |
+        cd $(Build.Repository.LocalPath) && mvn clean install && tar -hcvzf $(Project_name).tar.gz --exclude=/.git $(Build.Repository.LocalPath)/*
+    displayName: 'Zip project'
+
+#   #SAST - Conexão do pipeline com o SonarQube
+#   - task: SonarQubePrepare@4
+#     inputs:
+#       SonarQube: 'sonarqube-azure-server69'
+#       scannerMode: 'Other'
+#       extraProperties: |
+#         # Additional properties that will be passed to the scanner,
+#         # Put one key=value per line, example:
+#         # sonar.exclusions=**/*.bin
+#         sonar.projectKey=$(Project_name)
+#         sonar.projectName=$(Project_name)
+
+
+
+#   #SAST - Requisição para que o SonarQube faça um Scan
+#   - task: Maven@3
+#     inputs:
+#       mavenPomFile: 'pom.xml'
+#       publishJUnitResults: true
+#       testResultsFiles: '**/surefire-reports/TEST-*.xml'
+#       javaHomeOption: 'JDKVersion'
+#       mavenVersionOption: 'Default'
+#       mavenAuthenticateFeed: false
+#       effectivePomSkip: false
+#       sonarQubeRunAnalysis: true
+#       isJacocoCoverageReportXML: true
+#       sqMavenPluginVersionChoice: 'latest'
+
+
+#   #SAST - Publicação de resultados do Scan do SonarQube
+#   - task: SonarQubePublish@4
+#     inputs:
+#       pollingTimeoutSec: '300'
+#     displayName: 'SonarQube - Publish'
+
+  - task: Veracode@3
+    inputs:
+      ConnectionDetailsSelection: 'Credentials'
+      apiId: '$(veracode_apiid)'
+      apiKey: '$(veracode_apikey)'
+      veracodeAppProfile: '$(Project_name)'
+      version: '$(build.buildNumber)'
+      filepath: '$(Project_name).tar.gz'
+      createProfile: true
+      maximumWaitTime: '360'
+
+  # # # step do SCA
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'srcclr scan $(Build.Repository.LocalPath) --update-advisor'
+
+  # ##Give permission to mvnw file in order to snyk run without issues (/bin/sh: 1: ./mvnw: Permission denied)
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'chmod 777 $(Build.Repository.LocalPath)/mvnw'
+
+  # #SCA - Snyk Scan e criação de report nomedo pelo buildID em json - https://konklone.io/json/
+  # - task: SnykSecurityScan@0
+  #   inputs:
+  #     serviceConnectionEndpoint: 'snyk-e-mail-wallace'
+  #     testType: 'app'
+  #     monitorOnBuild: false
+  #     failOnIssues: false
+  #     projectName: '$(Project_name)'
+  #     additionalArguments: '--json-file-output=/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json'
+  #   displayName: 'Snyk - SCA Scan'
+
+  # ##Install before docker build
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'cd $(Build.Repository.LocalPath) && mvn clean install'
+
+
+  #Container Image Scan com Clair-Scanner simples
+  - script: |
+      /home/realroot/go/bin/clair-scanner --ip=172.17.0.1 --all -r /home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json -c http://127.0.0.1:6060 customer-history-api
+    displayName: 'Clair - Container Scan'
+    continueOnError: true
+
+  - task: PythonScript@0
+    inputs:
+      scriptSource: 'inline'
+      script: |
+        #!/usr/bin/python
+        # -*- coding: iso-8859-15 -*-
+        import os, sys
+        import requests
+        import json
+        
+        url = "http://localhost:8080/api/v2/import-scan/"
+        
+        payload={'scan_date': '2021-08-20',
+        'minimum_severity': 'Info',
+        'active': 'on',
+        'scan_type': 'Clair Scan', #Inserir o tipo do scan
+        'enviroment': $(DefectDJ_Product_ID),
+        'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+        files=[
+        ('file',('clair-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+        ]
+        headers = {
+        'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+        }
+        
+        response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+        print(response.text)
+    displayName: 'Clair to DJ'
+
+
+  # - task: PythonScript@0
+  #   inputs:
+  #     scriptSource: 'inline'
+  #     script: |
+  #       #!/usr/bin/python
+  #       # -*- coding: iso-8859-15 -*-
+  #       import os, sys
+  #       import requests
+  #       import json
+        
+  #       url = "http://localhost:8080/api/v2/import-scan/"
+        
+  #       payload={'scan_date': '2021-08-20',
+  #       'minimum_severity': 'Info',
+  #       'active': 'on',
+  #       'scan_type': 'Snyk Scan', #Inserir o tipo do scan
+  #       'enviroment': $(DefectDJ_Product_ID),
+  #       'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+  #       files=[
+  #       ('file',('snyk-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+  #       ]
+  #       headers = {
+  #       'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+  #       }
+        
+  #       response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+  #       print(response.text)
+  #   displayName: 'Snyk to DJ'
+
+
+
+# - job: ZAP_Scan
+#   timeoutInMinutes: 1440
+#   steps:
+#   #ZAP
+#   - script: |
+#       export ZAP_PATH=/opt/zaproxy/ && zap-cli-v2 shutdown && zap-cli-v2 start -o "-config api.disablekey=true -config ajaxSpider.browserId=htmlunit -config connection.timeoutInSecs=1200" && zap-cli-v2 -v spider $(zap_url_scan) && zap-cli-v2 -v ajax-spider $(zap_url_scan) && zap-cli-v2 -v active-scan -r $(zap_url_scan) && zap-cli-v2 report -o /home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml -f xml && zap-cli-v2 shutdown
+#     displayName: 'ZAP Scan'
+#     condition: not(eq(variables.zap_url_scan, ''))
+#   - task: PythonScript@0
+#     condition: not(eq(variables.zap_url_scan, ''))
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'ZAP Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('zap-report-$(build.buildNumber).xml',open('/home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml','rb'),'text/xml'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'ZAP to DJ'
+
+
+
+################BACK DATA - NO USE
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/master/deployments/scripts/install.sh | bash -s latest && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -o=json -O="/home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json" -p ./ 
+  #   displayName: 'Horusec'
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).csv --unwind analysisVulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'HoruSec - File Conversion'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/src horuszup/horusec-cli:latest horusec start -p /src -P $(pwd)
+  #   displayName: 'Horusec 2'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #     cd $(Build.Repository.LocalPath) && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -p .
+  #   displayName: 'Horusec 3'
+
+  # #DAST - OWASPZAP - Report fica salvo na pasta onde o pipeline roda o owaszap, portanto mutável.
+  # - task: owaspzap@1
+  #   inputs:
+  #     aggressivemode: true
+  #     threshold: '300'
+  #     scantype: 'targetedScan'
+  #     url: 'https://openbankingbrasil.org.br'
+  #     port: '443'
+  #   timeoutInMinutes: 1440
+
+  # #Find owaszap report
+  # - script: |
+  #     cd $(Build.Repository.LocalPath)/owaszap && pwd
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).csv --unwind vulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Snyk - File Conversion'
+
+  # #Container Image Scan com Trivy simples - https://data.page/json/csv
+  # - script: |
+  #     trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json mongo
+  #   displayName: 'Trivy - Container Scan'
+
+  # #Container Image Scan com Trivy
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR'
+
+  # #Convert Trivy json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).csv --unwind Vulnerabilities --unwind-blank --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Trivy - File Conversion'
+
+  # #Container Image Scan com regra para quebrar o pipeline - https://pixelrobots.co.uk/2020/02/use-trivy-and-azure-devops-to-scan-container-images-for-vulnerabilities/
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 0 --severity MEDIUM,HIGH --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 1 --severity CRITICAL --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR and rules'
+
+# && zap-cli-v2 -v active-scan -r $(zap_url_scan)
+  # - script: |
+  #     curl --location --request POST 'http://10.80.80.69:8080/api/v2/import-scan/' \
+  #     --header 'Content-Type: application/json' \
+  #     --header 'Authorization: Token 79245c16e436f8056549849040c8ba72f80410eb' \
+  #     --form 'scan_date="2021-08-20"' \
+  #     --form 'minimum_severity="Info"' \
+  #     --form 'active="on"' \
+  #     --form 'scan_type="Clair Scan"' \
+  #     --form 'enviroment="2"' \
+  #     --form 'file=@"/home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json"' \
+  #     --form 'engagement="82"'
+
+
+----------------atis_web-----------------------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "16 13 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+variables:
+- name: zap_url_scan
+  value: 'http://localhost:3000'
+- name: DefectDJ_Eng_ID
+  value: '89'
+- name: DefectDJ_Product_ID
+  value: '6'
+- name: Project_name
+  value: 'Atis_web'
+
+jobs:
+- job: A
+  steps:
+
+#   - script: |
+#       cd $(Build.Repository.LocalPath) && pwd
+
+
+  - script: |
+        cd $(Build.Repository.LocalPath) && docker build -t customer-history-web . && tar -hcvzf $(Project_name).tar.gz --exclude=/.git $(Build.Repository.LocalPath)/*
+    displayName: 'Zip project'
+
+  # #SAST - Conexão do pipeline com o SonarQube
+  # - task: SonarQubePrepare@4
+  #   inputs:
+  #     SonarQube: 'sonarqube-azure-server69'
+  #     scannerMode: 'CLI'
+  #     configMode: 'file'
+  #     extraProperties: |
+  #       # Additional properties that will be passed to the scanner,
+  #       # Put one key=value per line, example:
+  #       # sonar.exclusions=**/*.bin
+  #       sonar.projectKey=$(Project_name)
+  #       sonar.eslint.eslintpath=/usr/local/bin/
+
+  # - task: SonarQubeAnalyze@4
+
+
+  # #SAST - Publicação de resultados do Scan do SonarQube
+  # - task: SonarQubePublish@4
+  #   inputs:
+  #     pollingTimeoutSec: '300'
+  #   displayName: 'SonarQube - Publish'
+
+
+  - task: Veracode@3
+    inputs:
+      ConnectionDetailsSelection: 'Credentials'
+      apiId: '$(veracode_apiid)'
+      apiKey: '$(veracode_apikey)'
+      veracodeAppProfile: '$(Project_name)'
+      version: '$(build.buildNumber)'
+      filepath: '$(Project_name).tar.gz'
+      createProfile: true
+      maximumWaitTime: '360'
+
+  # # # # step do SCA
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'srcclr scan $(Build.Repository.LocalPath) --update-advisor'
+
+
+
+  # #SCA - Snyk Scan e criação de report nomedo pelo buildID em json - https://konklone.io/json/
+  # - task: SnykSecurityScan@0
+  #   inputs:
+  #     serviceConnectionEndpoint: 'snyk-e-mail-wallace'
+  #     testType: 'app'
+  #     monitorOnBuild: true
+  #     failOnIssues: false
+  #     projectName: 'Atis_web'
+  #     additionalArguments: '--json-file-output=/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json'
+  #   displayName: 'Snyk - SCA Scan'
+
+  # #Container Image Scan com Clair-Scanner simples
+  # - script: |
+  #     /home/realroot/go/bin/clair-scanner --ip=172.17.0.1 --all -r /home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json -c http://127.0.0.1:6060 customer-history-api:latest
+  #   displayName: 'Clair - Container Scan'
+  #   continueOnError: true
+
+  # - task: PythonScript@0
+  #   inputs:
+  #     scriptSource: 'inline'
+  #     script: |
+  #       #!/usr/bin/python
+  #       # -*- coding: iso-8859-15 -*-
+  #       import os, sys
+  #       import requests
+  #       import json
+        
+  #       url = "http://localhost:8080/api/v2/import-scan/"
+        
+  #       payload={'scan_date': '2021-08-20',
+  #       'minimum_severity': 'Info',
+  #       'active': 'on',
+  #       'scan_type': 'Clair Scan', #Inserir o tipo do scan
+  #       'enviroment': $(DefectDJ_Product_ID),
+  #       'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+  #       files=[
+  #       ('file',('clair-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+  #       ]
+  #       headers = {
+  #       'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+  #       }
+        
+  #       response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+  #       print(response.text)
+  #   displayName: 'Clair to DJ'
+
+
+#   - task: PythonScript@0
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'Snyk Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('snyk-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'Snyk to DJ'
+
+
+# - job: ZAP_Scan
+#   timeoutInMinutes: 1440
+#   steps:
+#   #ZAP
+#   - script: |
+#       export ZAP_PATH=/opt/zaproxy/ && zap-cli-v2 shutdown && zap-cli-v2 start -o "-config api.disablekey=true -config ajaxSpider.browserId=htmlunit -config connection.timeoutInSecs=1200" && zap-cli-v2 -v spider $(zap_url_scan) && zap-cli-v2 -v ajax-spider $(zap_url_scan) && zap-cli-v2 -v active-scan -r $(zap_url_scan) && zap-cli-v2 report -o /home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml -f xml && zap-cli-v2 shutdown
+#     displayName: 'ZAP Scan'
+#     condition: not(eq(variables.zap_url_scan, ''))
+#   - task: PythonScript@0
+#     condition: not(eq(variables.zap_url_scan, ''))
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'ZAP Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('zap-report-$(build.buildNumber).xml',open('/home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml','rb'),'text/xml'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'ZAP to DJ'
+
+
+
+################BACK DATA - NO USE
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/master/deployments/scripts/install.sh | bash -s latest && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -o=json -O="/home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json" -p ./ 
+  #   displayName: 'Horusec'
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).csv --unwind analysisVulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'HoruSec - File Conversion'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/src horuszup/horusec-cli:latest horusec start -p /src -P $(pwd)
+  #   displayName: 'Horusec 2'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #     cd $(Build.Repository.LocalPath) && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -p .
+  #   displayName: 'Horusec 3'
+
+  # #DAST - OWASPZAP - Report fica salvo na pasta onde o pipeline roda o owaszap, portanto mutável.
+  # - task: owaspzap@1
+  #   inputs:
+  #     aggressivemode: true
+  #     threshold: '300'
+  #     scantype: 'targetedScan'
+  #     url: 'https://openbankingbrasil.org.br'
+  #     port: '443'
+  #   timeoutInMinutes: 1440
+
+  # #Find owaszap report
+  # - script: |
+  #     cd $(Build.Repository.LocalPath)/owaszap && pwd
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).csv --unwind vulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Snyk - File Conversion'
+
+  # #Container Image Scan com Trivy simples - https://data.page/json/csv
+  # - script: |
+  #     trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json mongo
+  #   displayName: 'Trivy - Container Scan'
+
+  # #Container Image Scan com Trivy
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR'
+
+  # #Convert Trivy json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).csv --unwind Vulnerabilities --unwind-blank --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Trivy - File Conversion'
+
+  # #Container Image Scan com regra para quebrar o pipeline - https://pixelrobots.co.uk/2020/02/use-trivy-and-azure-devops-to-scan-container-images-for-vulnerabilities/
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 0 --severity MEDIUM,HIGH --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 1 --severity CRITICAL --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR and rules'
+
+# && zap-cli-v2 -v active-scan -r $(zap_url_scan)
+  # - script: |
+  #     curl --location --request POST 'http://10.80.80.69:8080/api/v2/import-scan/' \
+  #     --header 'Content-Type: application/json' \
+  #     --header 'Authorization: Token 79245c16e436f8056549849040c8ba72f80410eb' \
+  #     --form 'scan_date="2021-08-20"' \
+  #     --form 'minimum_severity="Info"' \
+  #     --form 'active="on"' \
+  #     --form 'scan_type="Clair Scan"' \
+  #     --form 'enviroment="2"' \
+  #     --form 'file=@"/home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json"' \
+  #     --form 'engagement="82"'
+
+
+-----------cockpit-back--------------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "16 13 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+variables:
+- name: zap_url_scan
+  value: 'https://www.mhnumbers.com.br/mininghub'
+- name: DefectDJ_Eng_ID
+  value: '92'
+- name: DefectDJ_Product_ID
+  value: '8'
+- name: Project_name
+  value: 'CockpitDigital-Back_End'
+- name: BuildConfiguration
+  value: 'Debug'
+
+jobs:
+- job: A
+  steps:
+
+  - script: |
+      cd $(Build.Repository.LocalPath) && pwd
+#  && dotnet restore
+# # && docker build -t customer-history-api .
+
+
+
+  - task: UseDotNet@2
+    displayName: 'Use .NET Core sdk'
+    inputs:
+      packageType: sdk
+      version: 3.1.x
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+
+  - script: |
+        cd $(Build.Repository.LocalPath) && mkdir outputfilesfromdotnet
+
+  - task: DotNetCoreCLI@2
+    displayName: dotnet publish
+    inputs:
+      command: 'publish'
+      publishWebProjects: true
+      arguments: '--configuration $(BuildConfiguration) --output $(Build.Repository.LocalPath)/outputfilesfromdotnet'
+      modifyOutputPath: false
+
+
+
+
+
+
+  # - script: |
+  #       cd outputfilesfromdotnet/ && tar -hcvzf $(Project_name).tar.gz --exclude=/.git $(Build.Repository.LocalPath)/outputfilesfromdotnet/*
+  #   displayName: 'Zip project'
+
+  # #SAST - Conexão do pipeline com o SonarQube
+  # - task: SonarQubePrepare@4
+  #   inputs:
+  #     SonarQube: 'sonarqube-azure-server69'
+  #     scannerMode: 'CLI'
+  #     configMode: 'file'
+  #     extraProperties: |
+  #       # Additional properties that will be passed to the scanner,
+  #       # Put one key=value per line, example:
+  #       # sonar.exclusions=**/*.bin
+  #       sonar.projectKey=$(Project_name)
+  #       sonar.eslint.eslintpath=/usr/local/bin/
+
+  # - task: SonarQubeAnalyze@4
+
+  # #SAST - Publicação de resultados do Scan do SonarQube
+  # - task: SonarQubePublish@4
+  #   inputs:
+  #     pollingTimeoutSec: '300'
+  #   displayName: 'SonarQube - Publish'
+
+  - task: Veracode@3
+    inputs:
+      ConnectionDetailsSelection: 'Credentials'
+      apiId: '$(veracode_apiid)'
+      apiKey: '$(veracode_apikey)'
+      veracodeAppProfile: '$(Project_name)'
+      version: '$(build.buildNumber)'
+      filepath: 'outputfilesfromdotnet/outputfilesfromdotnet.zip'
+      createProfile: true
+      maximumWaitTime: '360'
+
+  # # # step do SCA
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'srcclr scan $(Build.Repository.LocalPath) --update-advisor'
+
+
+#   #SCA - Snyk Scan e criação de report nomedo pelo buildID em json - https://konklone.io/json/
+#   - task: SnykSecurityScan@0
+#     inputs:
+#       serviceConnectionEndpoint: 'snyk-e-mail-wallace'
+#       testType: 'app'
+#       monitorOnBuild: false
+#       failOnIssues: false
+#       organization: 'cockpitdigital-back_end'
+#       additionalArguments: '--json-file-output=/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json --packages-folder= Mininghub.Application/obj/ Mininghub.Domain/obj/ Mininghub.Infra/obj/ Mininghub.Service/obj/'
+# # --packages-folder= Mininghub.Application/obj/ Mininghub.Domain/obj/ Mininghub.Infra/obj/ Mininghub.Service/obj/
+
+
+#   - task: PythonScript@0
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'Snyk Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('snyk-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'Snyk to DJ'
+
+
+  # #Container Image Scan com Clair-Scanner simples
+  # - script: |
+  #     /home/realroot/go/bin/clair-scanner --ip=172.17.0.1 --all -r /home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json -c http://127.0.0.1:6060 customer-history-api
+  #   displayName: 'Clair - Container Scan'
+  #   continueOnError: true
+
+  # - task: PythonScript@0
+  #   inputs:
+  #     scriptSource: 'inline'
+  #     script: |
+  #       #!/usr/bin/python
+  #       # -*- coding: iso-8859-15 -*-
+  #       import os, sys
+  #       import requests
+  #       import json
+        
+  #       url = "http://localhost:8080/api/v2/import-scan/"
+        
+  #       payload={'scan_date': '2021-08-20',
+  #       'minimum_severity': 'Info',
+  #       'active': 'on',
+  #       'scan_type': 'Clair Scan', #Inserir o tipo do scan
+  #       'enviroment': $(DefectDJ_Product_ID),
+  #       'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+  #       files=[
+  #       ('file',('clair-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+  #       ]
+  #       headers = {
+  #       'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+  #       }
+        
+  #       response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+  #       print(response.text)
+  #   displayName: 'Clair to DJ'
+
+
+
+# - job: ZAP_Scan
+#   timeoutInMinutes: 1440
+#   steps:
+#   #ZAP
+#   - script: |
+#       export ZAP_PATH=/opt/zaproxy/ && zap-cli-v2 shutdown && zap-cli-v2 start -o "-config api.disablekey=true -config ajaxSpider.browserId=htmlunit -config connection.timeoutInSecs=1200" && zap-cli-v2 -v spider $(zap_url_scan) && zap-cli-v2 -v ajax-spider $(zap_url_scan) && zap-cli-v2 -v active-scan -r $(zap_url_scan) && zap-cli-v2 report -o /home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml -f xml && zap-cli-v2 shutdown
+#     displayName: 'ZAP Scan'
+#     condition: not(eq(variables.zap_url_scan, ''))
+#   - task: PythonScript@0
+#     condition: not(eq(variables.zap_url_scan, ''))
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'ZAP Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('zap-report-$(build.buildNumber).xml',open('/home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml','rb'),'text/xml'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'ZAP to DJ'
+
+
+
+################BACK DATA - NO USE
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/master/deployments/scripts/install.sh | bash -s latest && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -o=json -O="/home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json" -p ./ 
+  #   displayName: 'Horusec'
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).csv --unwind analysisVulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'HoruSec - File Conversion'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/src horuszup/horusec-cli:latest horusec start -p /src -P $(pwd)
+  #   displayName: 'Horusec 2'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #     cd $(Build.Repository.LocalPath) && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -p .
+  #   displayName: 'Horusec 3'
+
+  # #DAST - OWASPZAP - Report fica salvo na pasta onde o pipeline roda o owaszap, portanto mutável.
+  # - task: owaspzap@1
+  #   inputs:
+  #     aggressivemode: true
+  #     threshold: '300'
+  #     scantype: 'targetedScan'
+  #     url: 'https://openbankingbrasil.org.br'
+  #     port: '443'
+  #   timeoutInMinutes: 1440
+
+  # #Find owaszap report
+  # - script: |
+  #     cd $(Build.Repository.LocalPath)/owaszap && pwd
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).csv --unwind vulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Snyk - File Conversion'
+
+  # #Container Image Scan com Trivy simples - https://data.page/json/csv
+  # - script: |
+  #     trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json mongo
+  #   displayName: 'Trivy - Container Scan'
+
+  # #Container Image Scan com Trivy
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR'
+
+  # #Convert Trivy json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).csv --unwind Vulnerabilities --unwind-blank --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Trivy - File Conversion'
+
+  # #Container Image Scan com regra para quebrar o pipeline - https://pixelrobots.co.uk/2020/02/use-trivy-and-azure-devops-to-scan-container-images-for-vulnerabilities/
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 0 --severity MEDIUM,HIGH --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 1 --severity CRITICAL --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR and rules'
+
+# && zap-cli-v2 -v active-scan -r $(zap_url_scan)
+  # - script: |
+  #     curl --location --request POST 'http://10.80.80.69:8080/api/v2/import-scan/' \
+  #     --header 'Content-Type: application/json' \
+  #     --header 'Authorization: Token 79245c16e436f8056549849040c8ba72f80410eb' \
+  #     --form 'scan_date="2021-08-20"' \
+  #     --form 'minimum_severity="Info"' \
+  #     --form 'active="on"' \
+  #     --form 'scan_type="Clair Scan"' \
+  #     --form 'enviroment="2"' \
+  #     --form 'file=@"/home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json"' \
+  #     --form 'engagement="82"'
+
+----------------cockpit-front-------------------
+
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "16 13 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+variables:
+# - name: zap_url_scan
+#   value: 'https://www.mhnumbers.com.br/mininghub'
+- name: DefectDJ_Eng_ID
+  value: '93'
+- name: DefectDJ_Product_ID
+  value: '9'
+- name: Project_name
+  value: 'CockpitDigital-Front_End'
+
+jobs:
+- job: A
+  steps:
+
+  - script: |
+      cd $(Build.Repository.LocalPath) && pwd
+#  && dotnet restore
+# # && docker build -t customer-history-api .
+
+  - script: |
+        tar -hcvzf $(Project_name).tar.gz --exclude=/.git $(Build.Repository.LocalPath)/*
+    displayName: 'Zip project'
+
+  #SAST - Conexão do pipeline com o SonarQube
+  - task: SonarQubePrepare@4
+    inputs:
+      SonarQube: 'sonarqube-azure-server69'
+      scannerMode: 'CLI'
+      configMode: 'file'
+      extraProperties: |
+        # Additional properties that will be passed to the scanner,
+        # Put one key=value per line, example:
+        # sonar.exclusions=**/*.bin
+        sonar.projectKey=$(Project_name)
+        sonar.eslint.eslintpath=/usr/local/bin/
+
+  - task: SonarQubeAnalyze@4
+
+  #SAST - Publicação de resultados do Scan do SonarQube
+  - task: SonarQubePublish@4
+    inputs:
+      pollingTimeoutSec: '300'
+    displayName: 'SonarQube - Publish'
+
+  - task: Veracode@3
+    inputs:
+      ConnectionDetailsSelection: 'Credentials'
+      apiId: '$(veracode_apiid)'
+      apiKey: '$(veracode_apikey)'
+      veracodeAppProfile: '$(Project_name)'
+      version: '$(build.buildNumber)'
+      filepath: '$(Project_name).tar.gz'
+      createProfile: true
+      maximumWaitTime: '360'
+
+  # # # step do SCA
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'srcclr scan $(Build.Repository.LocalPath) --update-advisor'
+
+
+  #SCA - Snyk Scan e criação de report nomedo pelo buildID em json - https://konklone.io/json/
+  - task: SnykSecurityScan@0
+    inputs:
+      serviceConnectionEndpoint: 'snyk-e-mail-wallace'
+      testType: 'app'
+      monitorOnBuild: false
+      failOnIssues: false
+      projectName: '$(Project_name)'
+      additionalArguments: '--json-file-output=/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json'
+# --packages-folder= Mininghub.Application/obj/ Mininghub.Domain/obj/ Mininghub.Infra/obj/ Mininghub.Service/obj/
+
+
+  - task: PythonScript@0
+    inputs:
+      scriptSource: 'inline'
+      script: |
+        #!/usr/bin/python
+        # -*- coding: iso-8859-15 -*-
+        import os, sys
+        import requests
+        import json
+        
+        url = "http://localhost:8080/api/v2/import-scan/"
+        
+        payload={'scan_date': '2021-08-20',
+        'minimum_severity': 'Info',
+        'active': 'on',
+        'scan_type': 'Snyk Scan', #Inserir o tipo do scan
+        'enviroment': $(DefectDJ_Product_ID),
+        'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+        files=[
+        ('file',('snyk-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/snykreport/snyk-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+        ]
+        headers = {
+        'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+        }
+        
+        response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+        print(response.text)
+    displayName: 'Snyk to DJ'
+
+
+  # #Container Image Scan com Clair-Scanner simples
+  # - script: |
+  #     /home/realroot/go/bin/clair-scanner --ip=172.17.0.1 --all -r /home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json -c http://127.0.0.1:6060 customer-history-api
+  #   displayName: 'Clair - Container Scan'
+  #   continueOnError: true
+
+  # - task: PythonScript@0
+  #   inputs:
+  #     scriptSource: 'inline'
+  #     script: |
+  #       #!/usr/bin/python
+  #       # -*- coding: iso-8859-15 -*-
+  #       import os, sys
+  #       import requests
+  #       import json
+        
+  #       url = "http://localhost:8080/api/v2/import-scan/"
+        
+  #       payload={'scan_date': '2021-08-20',
+  #       'minimum_severity': 'Info',
+  #       'active': 'on',
+  #       'scan_type': 'Clair Scan', #Inserir o tipo do scan
+  #       'enviroment': $(DefectDJ_Product_ID),
+  #       'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+  #       files=[
+  #       ('file',('clair-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/clairreport/clair-report-$(Project_name)$(build.buildNumber).json','rb'),'application/json'))
+  #       ]
+  #       headers = {
+  #       'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+  #       }
+        
+  #       response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+  #       print(response.text)
+  #   displayName: 'Clair to DJ'
+
+
+
+# - job: ZAP_Scan
+#   timeoutInMinutes: 1440
+#   steps:
+#   #ZAP
+#   - script: |
+#       export ZAP_PATH=/opt/zaproxy/ && zap-cli-v2 shutdown && zap-cli-v2 start -o "-config api.disablekey=true -config ajaxSpider.browserId=htmlunit -config connection.timeoutInSecs=1200" && zap-cli-v2 -v spider $(zap_url_scan) && zap-cli-v2 -v ajax-spider $(zap_url_scan) && zap-cli-v2 -v active-scan -r $(zap_url_scan) && zap-cli-v2 report -o /home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml -f xml && zap-cli-v2 shutdown
+#     displayName: 'ZAP Scan'
+#     condition: not(eq(variables.zap_url_scan, ''))
+#   - task: PythonScript@0
+#     condition: not(eq(variables.zap_url_scan, ''))
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'ZAP Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('zap-report-$(build.buildNumber).xml',open('/home/realroot/azuredevops_output_files/owaspzapreport/zap-report-$(Project_name)$(build.buildNumber).xml','rb'),'text/xml'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'ZAP to DJ'
+
+
+
+################BACK DATA - NO USE
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/master/deployments/scripts/install.sh | bash -s latest && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -o=json -O="/home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json" -p ./ 
+  #   displayName: 'Horusec'
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).csv --unwind analysisVulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'HoruSec - File Conversion'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/src horuszup/horusec-cli:latest horusec start -p /src -P $(pwd)
+  #   displayName: 'Horusec 2'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #     cd $(Build.Repository.LocalPath) && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -p .
+  #   displayName: 'Horusec 3'
+
+  # #DAST - OWASPZAP - Report fica salvo na pasta onde o pipeline roda o owaszap, portanto mutável.
+  # - task: owaspzap@1
+  #   inputs:
+  #     aggressivemode: true
+  #     threshold: '300'
+  #     scantype: 'targetedScan'
+  #     url: 'https://openbankingbrasil.org.br'
+  #     port: '443'
+  #   timeoutInMinutes: 1440
+
+  # #Find owaszap report
+  # - script: |
+  #     cd $(Build.Repository.LocalPath)/owaszap && pwd
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).csv --unwind vulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Snyk - File Conversion'
+
+  # #Container Image Scan com Trivy simples - https://data.page/json/csv
+  # - script: |
+  #     trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json mongo
+  #   displayName: 'Trivy - Container Scan'
+
+  # #Container Image Scan com Trivy
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR'
+
+  # #Convert Trivy json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).csv --unwind Vulnerabilities --unwind-blank --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Trivy - File Conversion'
+
+  # #Container Image Scan com regra para quebrar o pipeline - https://pixelrobots.co.uk/2020/02/use-trivy-and-azure-devops-to-scan-container-images-for-vulnerabilities/
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 0 --severity MEDIUM,HIGH --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 1 --severity CRITICAL --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR and rules'
+
+# && zap-cli-v2 -v active-scan -r $(zap_url_scan)
+  # - script: |
+  #     curl --location --request POST 'http://10.80.80.69:8080/api/v2/import-scan/' \
+  #     --header 'Content-Type: application/json' \
+  #     --header 'Authorization: Token 79245c16e436f8056549849040c8ba72f80410eb' \
+  #     --form 'scan_date="2021-08-20"' \
+  #     --form 'minimum_severity="Info"' \
+  #     --form 'active="on"' \
+  #     --form 'scan_type="Clair Scan"' \
+  #     --form 'enviroment="2"' \
+  #     --form 'file=@"/home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json"' \
+  #     --form 'engagement="82"'
+
+
+-----------juiceshop-------------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+
+steps:
+
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'cp /home/realroot/eslint.sh $(Build.Repository.LocalPath) && ./eslint.sh'
+  #   displayName: 'esl report.json'
+  # # concontinueOnError: true
+
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: |
+  #       eslint --init
+
+
+  #SAST - Conexão do pipeline com o SonarQube
+  - task: SonarQubePrepare@4
+    inputs:
+      SonarQube: 'sonarqube-azure-server69'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'AppSec_-_OpenSource_juiceshop'
+      cliSources: '.'
+      extraProperties: |
+        # Additional properties that will be passed to the scanner, 
+        # Put one key=value per line, example:
+        # sonar.exclusions=**/*.bin
+        sonar.eslint.eslintpath=/usr/local/bin/
+    continueOnError: true
+    displayName: 'Connecting to SonarQb'
+
+  #SAST - Requisição para que o SonarQube faça um Scan
+  - task: SonarQubeAnalyze@4
+
+  #SAST - Publicação de resultados do Scan do SonarQube
+  - task: SonarQubePublish@4
+    inputs:
+      pollingTimeoutSec: '300'
+    displayName: 'SonarQube - Publish'
+
+--------------open source pipeline----------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+steps:
+# - task: SonarQubePrepare@4
+#   inputs:
+#     SonarQube: 'Sonarqube-on-azure'
+#     scannerMode: 'CLI'
+#     configMode: 'manual'
+#     cliProjectKey: 'AppSec_Sq-Qlys_AppSec_Sq-Qlys'
+#     cliSources: '.'
+#   continueOnError: true
+#   displayName: 'Connecting to SonarQb'
+
+# #SonarQube Scan
+# - task: SonarQubeAnalyze@4
+#   displayName: 'SonarQube - SAST'
+
+# #SonarQube Publishing Scan
+# - task: SonarQubePublish@4
+#   inputs:
+#     pollingTimeoutSec: '300'
+#   displayName: 'SonarQube - Publish'
+
+#Build Image
+- task: DockerCompose@0
+  inputs:
+    containerregistrytype: 'Azure Container Registry'
+    azureSubscription: 'Microsoft Partner Network(2)(1ba5446c-0812-4cc9-8f54-416b8af1b516)'
+    azureContainerRegistry: '{"loginServer":"devsecopsacn.azurecr.io", "id" : "/subscriptions/1ba5446c-0812-4cc9-8f54-416b8af1b516/resourceGroups/Servidores_Homolog/providers/Microsoft.ContainerRegistry/registries/devsecopsacn"}'
+    dockerComposeFile: '**/docker-compose.yml'
+    projectName: 'nodegoatappv2'
+    action: 'Run a Docker Compose command'
+    dockerComposeCommand: 'build'
+  displayName: 'Build'
+
+#Push to ACR
+- task: DockerCompose@0
+  inputs:
+    containerregistrytype: 'Azure Container Registry'
+    azureSubscription: 'Microsoft Partner Network(3)(1ba5446c-0812-4cc9-8f54-416b8af1b516)'
+    azureContainerRegistry: '{"loginServer":"devsecopsacn.azurecr.io", "id" : "/subscriptions/1ba5446c-0812-4cc9-8f54-416b8af1b516/resourceGroups/Servidores_Homolog/providers/Microsoft.ContainerRegistry/registries/devsecopsacn"}'
+    dockerComposeFile: '**/docker-compose.yml'
+    projectName: 'nodegoatappv2'
+    action: 'Push services'
+    includeLatestTag: true
+  displayName: 'Push'
+
+# #Logging to ACR
+# - script: |
+#     docker context use default
+#     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+#   displayName: 'ACR Authentication'
+
+# #Prismacloud Image Scan
+# - task: prisma-cloud-compute-scan@3
+#   inputs:
+#     scanType: 'images'
+#     twistlockService: 'prismacloud'
+#     artifact: 'devsecopsacn.azurecr.io/nodegoatappv2_web:latest'
+#   displayName: 'PrismaCloud Image Scan'
+
+- script: |
+      cd $(Build.Repository.LocalPath)/ && npm install
+  displayName: 'Pre SCA scan'
+
+#SCA Dependency check
+- task: dependency-check-build-task@6
+  inputs:
+    projectName: 'Nodegoatappv2'
+    scanPath: '$(Build.Repository.LocalPath)/'
+    format: 'CSV'
+  displayName: 'SCA Scan'
+
+#Git Clone and Docker-compose up
+- script: |
+      cd /home/wmedeiros && git clone https://wmedeiros:$(dockercompose-repo-password)@dev.azure.com/devsecops-wmedeiros/AppSec%20-%20Sq_Qualys/_git/nodegoatapp_pipeline_opensrc && cp /home/wmedeiros/nodegoatapp_pipeline_opensrc/docker-compose.yml /home/wmedeiros/docker/docker-compose.yml && rm -r nodegoatapp_pipeline_opensrc -f && docker context use azure_devsecops && docker context ls && cd /home/wmedeiros/docker && ./docker login azure --client-id $(svcprincipal-rsghomolog-id) --client-secret $(svcprincipal--rsgserverhomolog) --tenant-id $(tenant-id) && ./docker compose --project-name nodegoatappv2 up
+  displayName: 'Deploy'
+
+- task: QualysWASConnector@2
+  inputs:
+    webApplication: '128430685-NodeGoat-AzureDevops'
+    scanName: 'NodeGoat_azureDevOps_$(Build.BuildId)'
+    scanType: 'VULNERABILITY'
+    authenticationRecord: 'Use Default'
+    dataCheckFrequency: '1'
+    waitTimeforScanResult: '1'
+    WasService: 'Qualyswm1'
+  continueOnError: true
+  displayName: 'Qualys - DAST'
+
+---------------------- docker compose for open source pipeline-------------
+version: "3.7"
+
+services:
+  mongo:
+    image: mongo:latest
+    user: mongodb
+    expose:
+      - 27017
+  web:
+    image: devsecopsacn.azurecr.io/nodegoatappv2_web:latest
+    domainname: "nodegoatapp-devsecopsv2"
+    environment:
+      NODE_ENV:
+      MONGODB_URI: mongodb://mongo:27017/nodegoat
+    command: sh -c "until nc -z -w 2 mongo 27017 && echo 'mongo is ready for connections' && node artifacts/db-reset.js && npm start; do sleep 2; done"
+    ports:
+      - "8080:8080"
+ 
+ 
+ --------------------------veracode pipeline-----------------
+ # Node.js
+# Build a general Node.js project with npm.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# Zipping file for SAST
+steps:
+- script: |
+      tar -hcvzf nodegoatapp.tar.gz --exclude=/.git $(Build.Repository.LocalPath)/*
+  displayName: 'Zip project'
+
+- task: DockerCompose@0
+  inputs:
+    containerregistrytype: 'Azure Container Registry'
+    azureSubscription: 'Microsoft Partner Network(1ba5446c-0812-4cc9-8f54-416b8af1b516)'
+    azureContainerRegistry: '{"loginServer":"devsecopsacn.azurecr.io", "id" : "/subscriptions/1ba5446c-0812-4cc9-8f54-416b8af1b516/resourceGroups/Servidores_Homolog/providers/Microsoft.ContainerRegistry/registries/devsecopsacn"}'
+    dockerComposeFile: '**/docker-compose.yml'
+    projectName: 'nodegoatapp'
+    action: 'Run a Docker Compose command'
+    dockerComposeCommand: 'build'
+  displayName: 'Build Docker Compose'
+
+- task: DockerCompose@0
+  inputs:
+    containerregistrytype: 'Azure Container Registry'
+    azureSubscription: 'Microsoft Partner Network(1ba5446c-0812-4cc9-8f54-416b8af1b516)'
+    azureContainerRegistry: '{"loginServer":"devsecopsacn.azurecr.io", "id" : "/subscriptions/1ba5446c-0812-4cc9-8f54-416b8af1b516/resourceGroups/Servidores_Homolog/providers/Microsoft.ContainerRegistry/registries/devsecopsacn"}'
+    dockerComposeFile: '**/docker-compose.yml'
+    projectName: 'nodegoatapp'
+    action: 'Push services'
+    includeLatestTag: true
+  displayName: 'Push container to ACR'
+
+# # step do SCA
+- script: |
+      export SRCCLR_SCM_URI=$(Build.Repository.Uri)
+      export SRCCLR_SCM_REF=$(Build.SourceBranchName)
+      export SRCCLR_SCM_REF_TYPE="branch"
+      export SRCCLR_SCM_REV=$(Build.SourceVersion)
+      export SRCCLR_API_TOKEN=$(SRCCLR_API_TOKEN)
+      curl -sSL https://download.sourceclear.com/ci.sh | bash -s test --npm
+      curl -sSL https://download.sourceclear.com/ci.sh | bash -s scan . --update-advisor
+  displayName: 'Veracode SCA Agent-Based'
+  continueOnError: true
+
+#Image Scan
+- script: |
+      docker context use default
+      docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+      export SRCCLR_SCM_URI=$(Build.Repository.Uri)
+      export SRCCLR_SCM_REF=$(Build.SourceBranchName)
+      export SRCCLR_SCM_REF_TYPE="branch"
+      export SRCCLR_SCM_REV=$(Build.SourceVersion)
+      export SRCCLR_API_TOKEN=$(SRCCLR_API_TOKEN)
+      curl -sSL https://download.sourceclear.com/ci.sh | bash -s scan --image devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  displayName: 'Veracode Image Scan'
+  continueOnError: true
+
+#SAST
+- task: Veracode@3
+  inputs:
+    ConnectionDetailsSelection: 'Credentials'
+    apiId: '$(apiid)'
+    apiKey: '$(apikey)'
+    veracodeAppProfile: 'NodeGoat-Azure'
+    version: '$(build.buildNumber)'
+    filepath: 'nodegoatapp.tar.gz'
+    importResults: true
+    failBuildOnPolicyFail: true
+    maximumWaitTime: '360'
+  continueOnError: true
+  displayName: 'Veracode SAST'
+
+#Veracode Application profile Importer
+- task: Veracode Flaw Importer@3
+  inputs:
+    ConnectionDetailsSelection: 'Credentials'
+    apiId: '$(apiid)'
+    apiKey: '$(apikey)'
+    veracodeAppProfile: 'NodeGoat-Azure'
+    sandboxName: 
+    importType: 'All Flaws'
+    workItemType: 'Issue'
+    area: '$(system.teamProject)'
+    flawImportLimit: '1000'
+  displayName: 'Veracode Importer - Azure Boards'
+
+# #Git Clone and Docker-compose up
+# - script: |
+#       cd /home/wmedeiros && git clone https://wmedeiros:$(dcokercompose-repo-password)@dev.azure.com/devsecops-wmedeiros/AppSec%20-%20Veracode/_git/nodegoatapp_pipeline_veracode && cp /home/wmedeiros/nodegoatapp_pipeline_veracode/docker-compose.yml /home/wmedeiros/docker/docker-compose.yml && rm -r nodegoatapp_pipeline_veracode -f && docker context use azure_devsecops && docker context ls && cd /home/wmedeiros/docker && ./docker login azure --client-id $(svcprincipal-rsghomolog-id) --client-secret $(svcprincipal--rsgserverhomolog) --tenant-id $(tenant-id) && ./docker compose --project-name nodegoatapp up
+#   displayName: 'Deploy'
+
+# - task: PythonScript@0
+#   inputs:
+#     scriptSource: 'inline'
+#     script: |
+#       #!/usr/bin/env python3
+#       import os
+#       import time                                                                     
+#       import hmac                                                                     
+#       import codecs
+#       import json  
+#       import sys                                                              
+#       from hashlib import sha256 
+#       import requests
+#       from requests.adapters import HTTPAdapter                                       
+#       from urllib.parse import urlparse
+      
+#       #Setup variables according to environment
+      
+#       #GitLab:
+#       api_id = "$(apiid)"
+#       api_secret = "$(apikey)"
+#       dynamic_job = "NodeGoat-CICD-$(Build.BuildId)"
+      
+      
+#       def veracode_hmac(host, url, method):
+#           signing_data = 'id={api_id}&host={host}&url={url}&method={method}'.format(
+#                           api_id=api_id.lower(),
+#                           host=host.lower(),
+#                           url=url, method=method.upper())
+      
+#           timestamp = int(round(time.time() * 1000))
+#           nonce = os.urandom(16).hex()
+      
+#           key_nonce = hmac.new(
+#               codecs.decode(api_secret, 'hex_codec'),
+#               codecs.decode(nonce, 'hex_codec'), sha256).digest()
+      
+#           key_date = hmac.new(key_nonce, str(timestamp).encode(), sha256).digest()
+#           signature_key = hmac.new(
+#                   key_date, 'vcode_request_version_1'.encode(), sha256).digest()
+#           signature = hmac.new(
+#                   signature_key, signing_data.encode(), sha256).hexdigest()
+      
+#           return '{auth} id={id},ts={ts},nonce={nonce},sig={sig}'.format(
+#                   auth='VERACODE-HMAC-SHA-256',
+#                   id=api_id,
+#                   ts=timestamp,
+#                   nonce=nonce,
+#                   sig=signature)
+      
+#       def prepared_request(method, end_point, json=None, query=None, file=None):
+#           session = requests.Session()
+#           session.mount(end_point, HTTPAdapter(max_retries=3))
+#           request = requests.Request(method, end_point, json=json, params=query, files=file)
+#           prepared_request = request.prepare()
+#           prepared_request.headers['Authorization'] = veracode_hmac(
+#               urlparse(end_point).hostname, prepared_request.path_url, method)
+#           res = session.send(prepared_request)
+      
+#           return res
+      
+#       # code above this line is reusable for all/most API calls
+      
+#       #Payload for creating and scheduling new DA job
+#       data =   {
+#         "name": dynamic_job,
+#         "scans": [
+#           {
+#             "scan_config_request": {
+#               "target_url": {
+#                 "url": "http://nodeapp.southcentralus.cloudapp.azure.com:8080/"
+#               }
+#             }
+#           }
+#         ],
+#         "schedule": {
+#           "now": True,
+#           "duration": {
+#             "length": 1,
+#             "unit": "DAY"
+#           }
+#         }
+#       }
+      
+      
+#       print("Creating a new Dynamic Analysis Job: " + dynamic_job )
+#       res = prepared_request('POST', 'https://api.veracode.com/was/configservice/v1/analyses', json=data)
+      
+#       if res.status_code == 201:
+#           print("Job Created and Submitted Successfully: " + str(res.status_code))
+#       else:
+#           response = res.json()
+#           print("Error encountered: " + response['_embedded']['errors'][0]['detail'])
+#   displayName: 'Veracode DAST'
+
+
+
+
+# - script: |
+#       http --auth-type=veracode_hmac "https://analysiscenter.veracode.com/api/5.0/rescandynamicscan.do" "app_id==$(apiid)" "flaw_only==true"
+#       http --auth-type=veracode_hmac "https://analysiscenter.veracode.com/api/5.0/submitdynamicscan.do" "app_id==$(apiid)" "start_time==2021-05-14T15:30:00-05:00" "end_time==2021-05-01T14:30:00-05:00"
+#   displayName: 'DAST'
+----------docker compose for veracode pipeline-------------
+version: "3.7"
+
+services:
+  mongo:
+    image: mongo:latest
+    user: mongodb
+    expose:
+      - 27017
+  web:
+    image: devsecopsacn.azurecr.io/nodegoatapp_web:latest
+    domainname: "nodegoatapp-devsecops"
+    environment:
+      NODE_ENV:
+      MONGODB_URI: mongodb://mongo:27017/nodegoat
+    command: sh -c "until nc -z -w 2 mongo 27017 && echo 'mongo is ready for connections' && node artifacts/db-reset.js && npm start; do sleep 2; done"
+    ports:
+      - "8080:8080"
+      
+      
+--------------------- vulnerable node--------------
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "46 12 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+# variables:
+# - name: testEmpty
+#   value: 'www.google.com'
+
+# jobs:
+#   - job: A
+#     steps:
+#     - script: echo testEmpty is not blank
+#     condition: not(eq(variables.testEmpty, ''))
+
+
+steps:
+- task: CmdLine@2
+  inputs:
+    script: 'pwd'
+
+#SAST - Conexão do pipeline com o SonarQube
+- task: SonarQubePrepare@4
+  inputs:
+    SonarQube: 'sonarqube-azure-server69'
+    scannerMode: 'CLI'
+    configMode: 'manual'
+    cliProjectKey: 'vulnerable-node'
+    cliSources: '.'
+    extraProperties: |
+      # Additional properties that will be passed to the scanner, 
+      # Put one key=value per line, example:
+      # sonar.exclusions=**/*.bin
+      sonar.eslint.eslintpath=/usr/local/bin/
+  continueOnError: true
+  displayName: 'Connecting to SonarQb'
+
+#SAST - Requisição para que o SonarQube faça um Scan
+- task: SonarQubeAnalyze@4
+
+#SAST - Publicação de resultados do Scan do SonarQube
+- task: SonarQubePublish@4
+  inputs:
+    pollingTimeoutSec: '300'
+  displayName: 'SonarQube - Publish'
+---------vulnado-------------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  Default
+
+steps:
+#SAST - Conexão do pipeline com o SonarQube
+- task: SonarQubePrepare@4
+  inputs:
+    SonarQube: 'sonarqube-azure-server69'
+    scannerMode: 'Other'
+    extraProperties: |
+      # Additional properties that will be passed to the scanner,
+      # Put one key=value per line, example:
+      # sonar.exclusions=**/*.bin
+      sonar.projectKey=AppSec_-_OpenSource_vulnado
+
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: true
+    isJacocoCoverageReportXML: true
+    sqMavenPluginVersionChoice: 'latest'
+    findBugsRunAnalysis: true
+
+
+#SAST - Publicação de resultados do Scan do SonarQube
+- task: SonarQubePublish@4
+  inputs:
+    pollingTimeoutSec: '300'
+---------------react vulna------------
+
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  Default
+
+
+steps:
+  - task: CmdLine@2
+    inputs:
+      script: 'pwd'
+  #SAST - Conexão do pipeline com o SonarQube
+  - task: SonarQubePrepare@4
+    inputs:
+      SonarQube: 'sonarqube-azure-server69'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'reactvulna'
+      cliSources: '.'
+      extraProperties: |
+        # Additional properties that will be passed to the scanner, 
+        # Put one key=value per line, example:
+        # sonar.exclusions=**/*.bin
+        sonar.eslint.eslintpath=/usr/local/bin/
+    continueOnError: true
+    displayName: 'Connecting to SonarQb'
+
+  #SAST - Requisição para que o SonarQube faça um Scan
+  - task: SonarQubeAnalyze@4
+
+  #SAST - Publicação de resultados do Scan do SonarQube
+  - task: SonarQubePublish@4
+    inputs:
+      pollingTimeoutSec: '300'
+    displayName: 'SonarQube - Publish'
+    
+------------php owaspzap vulnerable webapp---------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  Default
+
+
+steps:
+  #SAST - Conexão do pipeline com o SonarQube
+  - task: SonarQubePrepare@4
+    inputs:
+      SonarQube: 'sonarqube-azure-server69'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'php'
+      cliSources: '.'
+    continueOnError: true
+    displayName: 'Connecting to SonarQb'
+
+  #SAST - Requisição para que o SonarQube faça um Scan
+  - task: SonarQubeAnalyze@4
+
+  #SAST - Publicação de resultados do Scan do SonarQube
+  - task: SonarQubePublish@4
+    inputs:
+      pollingTimeoutSec: '300'
+    displayName: 'SonarQube - Publish'
+
+
+
+
+-----------dvpwa-----------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  Default
+
+
+steps:
+  # - task: CmdLine@2
+  #   inputs:
+  #     script: 'nosetests -sv --with-xunit --xunit-file=nosetests.xml --with-xcoverage --xcoverage-file=coverage.xml'
+  #   displayName: Pylint file generator
+
+  - task: CmdLine@2
+    inputs:
+      script: 'bandit -r . -f json -o bandirreport.json'
+    continueOnError: true
+    displayName: Bandit file generator
+
+  - script: |
+      cp /home/realroot/pylint.sh $(Build.Repository.LocalPath) && ./pylint.sh 2> /dev/null
+    continueOnError: true
+    displayName: Pylint file generator
+
+  - script: |
+      flake8 */* --output-file flake8.txt
+    continueOnError: true
+
+
+  #SAST - Conexão do pipeline com o SonarQube
+  - task: SonarQubePrepare@4
+    inputs:
+      SonarQube: 'sonarqube-azure-server69'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'dvpwa'
+      cliSources: '.'
+      extraProperties: |
+        # Additional properties that will be passed to the scanner, 
+        # Put one key=value per line, example:
+        # sonar.exclusions=**/*.bin
+        sonar.python.pylint.reportPath=$(Build.Repository.LocalPath)/pylinttest.txt
+    continueOnError: true
+    displayName: 'Connecting to SonarQb'
+
+  #SAST - Requisição para que o SonarQube faça um Scan
+  - task: SonarQubeAnalyze@4
+
+  #SAST - Publicação de resultados do Scan do SonarQube
+  - task: SonarQubePublish@4
+    inputs:
+      pollingTimeoutSec: '300'
+    displayName: 'SonarQube - Publish'
+
+
+
+-----------dvja-----------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  Default
+
+steps:
+#SAST - Conexão do pipeline com o SonarQube
+- task: SonarQubePrepare@4
+  inputs:
+    SonarQube: 'sonarqube-azure-server69'
+    scannerMode: 'Other'
+    extraProperties: |
+      # Additional properties that will be passed to the scanner,
+      # Put one key=value per line, example:
+      # sonar.exclusions=**/*.bin
+      sonar.projectKey=AppSec_-_OpenSource_dvja
+
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    codeCoverageToolOption: 'JaCoCo'
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: true
+    isJacocoCoverageReportXML: true
+    sqMavenPluginVersionChoice: 'latest'
+    findBugsRunAnalysis: true
+
+
+#SAST - Publicação de resultados do Scan do SonarQube
+- task: SonarQubePublish@4
+  inputs:
+    pollingTimeoutSec: '300'
+
+
+
+-----------------------portap rp---------------
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- $(Build.SourceBranchName)
+
+pool:
+  Default
+
+# schedules:
+# - cron: "16 13 * * *"
+#   displayName: Daily midnight build
+#   branches:
+#     include:
+#     - master
+
+variables:
+- name: zap_url_scan
+  value: 'https://portal.realprotect.net/'
+- name: DefectDJ_Eng_ID
+  value: '84'
+- name: DefectDJ_Product_ID
+  value: '4'
+
+jobs:
+- job: A
+  steps:
+  # #SAST - Conexão do pipeline com o SonarQube
+  # - task: SonarQubePrepare@4
+  #   inputs:
+  #     SonarQube: 'sonarqube-azure-server69'
+  #     scannerMode: 'CLI'
+  #     configMode: 'manual'
+  #     cliProjectKey: 'Portal-RP'
+  #     cliProjectName: 'Portal-RP'
+  #     cliSources: '.'
+  #     extraProperties: |
+  #       # Additional properties that will be passed to the scanner, 
+  #       # Put one key=value per line, example:
+  #       # sonar.exclusions=**/*.bin
+  #       sonar.eslint.eslintpath=/usr/local/bin/
+  #   continueOnError: true
+  #   displayName: 'Connecting to SonarQb'
+
+  # #SAST - Requisição para que o SonarQube faça um Scan
+  # - task: SonarQubeAnalyze@4
+
+  # #SAST - Publicação de resultados do Scan do SonarQube
+  # - task: SonarQubePublish@4
+  #   inputs:
+  #     pollingTimeoutSec: '300'
+  #   displayName: 'SonarQube - Publish'
+
+  - task: CmdLine@2
+    inputs:
+      script: 'pip3 install -r requirements.txt'
+
+
+
+  #SCA - Snyk Scan e criação de report nomedo pelo buildID em json - https://konklone.io/json/
+  - task: SnykSecurityScan@0
+    inputs:
+      serviceConnectionEndpoint: 'snyk-e-mail-wallace'
+      testType: 'app'
+      monitorOnBuild: false
+      failOnIssues: false
+      projectName: 'Portal-RP'
+      organization: 'rp_portal'
+      additionalArguments: '--file=requirements.txt --command=python3 --json-file-output=/home/realroot/azuredevops_output_files/snykreport/snyk-report-Portal-RP$(build.buildNumber).json'
+    displayName: 'Snyk - SCA Scan'
+
+  # #Container Image Scan com Clair-Scanner simples
+  # - script: |
+  #     /home/realroot/go/bin/clair-scanner --ip=172.17.0.1 --all -r /home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json -c http://127.0.0.1:6060 nginx
+  #   displayName: 'Clair - Container Scan'
+  #   continueOnError: true
+
+  # - task: PythonScript@0
+  #   inputs:
+  #     scriptSource: 'inline'
+  #     script: |
+  #       #!/usr/bin/python
+  #       # -*- coding: iso-8859-15 -*-
+  #       import os, sys
+  #       import requests
+  #       import json
+        
+  #       url = "http://localhost:8080/api/v2/import-scan/"
+        
+  #       payload={'scan_date': '2021-08-20',
+  #       'minimum_severity': 'Info',
+  #       'active': 'on',
+  #       'scan_type': 'Clair Scan', #Inserir o tipo do scan
+  #       'enviroment': $(DefectDJ_Product_ID),
+  #       'engagement': $(DefectDJ_Eng_ID) } #Engagement - Verificar pra onde será encaminhado
+  #       files=[
+  #       ('file',('clair-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json','rb'),'application/json'))
+  #       ]
+  #       headers = {
+  #       'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+  #       }
+        
+  #       response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+  #       print(response.text)
+  #   displayName: 'Clair to DJ'
+
+
+  - task: PythonScript@0
+    inputs:
+      scriptSource: 'inline'
+      script: |
+        #!/usr/bin/python
+        # -*- coding: iso-8859-15 -*-
+        import os, sys
+        import requests
+        import json
+        
+        url = "http://localhost:8080/api/v2/import-scan/"
+        
+        payload={'scan_date': '2021-08-20',
+        'minimum_severity': 'Info',
+        'active': 'on',
+        'scan_type': 'Snyk Scan', #Inserir o tipo do scan
+        'enviroment': $(DefectDJ_Product_ID),
+        'engagement': $(DefectDJ_Eng_ID) } #Engagement - Verificar pra onde será encaminhado
+        files=[
+        ('file',('snyk-report-$(build.buildNumber).json',open('/home/realroot/azuredevops_output_files/snykreport/snyk-report-Portal-RP$(build.buildNumber).json','rb'),'application/json'))
+        ]
+        headers = {
+        'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+        }
+        
+        response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+        print(response.text)
+    displayName: 'Snyk to DJ'
+
+
+
+# - job: ZAP_Scan
+#   timeoutInMinutes: 1440
+#   steps:
+#   #ZAP
+#   - script: |
+#       export ZAP_PATH=/opt/zaproxy/ && zap-cli-v2 shutdown && zap-cli-v2 start -o "-config api.disablekey=true -config ajaxSpider.browserId=htmlunit -config connection.timeoutInSecs=1200" && zap-cli-v2 -v spider $(zap_url_scan) && zap-cli-v2 -v ajax-spider $(zap_url_scan) && zap-cli-v2 -v active-scan -r $(zap_url_scan) && zap-cli-v2 report -o /home/realroot/azuredevops_output_files/owaspzapreport/zap-report-Portal-RP$(build.buildNumber).xml -f xml && zap-cli-v2 shutdown
+#     displayName: 'ZAP Scan'
+#     condition: not(eq(variables.zap_url_scan, ''))
+
+#   - task: PythonScript@0
+#     condition: not(eq(variables.zap_url_scan, ''))
+#     inputs:
+#       scriptSource: 'inline'
+#       script: |
+#         #!/usr/bin/python
+#         # -*- coding: iso-8859-15 -*-
+#         import os, sys
+#         import requests
+#         import json
+        
+#         url = "http://localhost:8080/api/v2/import-scan/"
+        
+#         payload={'scan_date': '2021-08-20',
+#         'minimum_severity': 'Info',
+#         'active': 'on',
+#         'scan_type': 'ZAP Scan', #Inserir o tipo do scan
+#         'enviroment': $(DefectDJ_Product_ID),
+#         'engagement': $(DefectDJ_Eng_ID)} #Engagement - Verificar pra onde será encaminhado
+#         files=[
+#         ('file',('zap-report-$(build.buildNumber).xml',open('/home/realroot/azuredevops_output_files/owaspzapreport/zap-report-Portal-RP$(build.buildNumber).xml','rb'),'text/xml'))
+#         ]
+#         headers = {
+#         'Authorization': 'Token 79245c16e436f8056549849040c8ba72f80410eb'
+#         }
+        
+#         response = requests.request("POST", url, headers=headers, data=payload, files=files)
+        
+#         print(response.text)
+#     displayName: 'ZAP to DJ'
+
+
+
+################BACK DATA - NO USE
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/master/deployments/scripts/install.sh | bash -s latest && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -o=json -O="/home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json" -p ./ 
+  #   displayName: 'Horusec'
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/horusecreport/horusec-report-$(build.buildNumber).csv --unwind analysisVulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'HoruSec - File Conversion'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #    docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/src horuszup/horusec-cli:latest horusec start -p /src -P $(pwd)
+  #   displayName: 'Horusec 2'
+
+
+  # #SAST - Conexão do pipeline com o Horusec
+  # - script:  |
+  #     cd $(Build.Repository.LocalPath) && horusec start --information-severity=true -a $(horusec_manager_token_DevSecOps Accenture_NodeGoat - Azure Repo) -p .
+  #   displayName: 'Horusec 3'
+
+  # #DAST - OWASPZAP - Report fica salvo na pasta onde o pipeline roda o owaszap, portanto mutável.
+  # - task: owaspzap@1
+  #   inputs:
+  #     aggressivemode: true
+  #     threshold: '300'
+  #     scantype: 'targetedScan'
+  #     url: 'https://openbankingbrasil.org.br'
+  #     port: '443'
+  #   timeoutInMinutes: 1440
+
+  # #Find owaszap report
+  # - script: |
+  #     cd $(Build.Repository.LocalPath)/owaszap && pwd
+
+  # #Convert Snyk json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/snykreport/snyk-report-$(build.buildNumber).csv --unwind vulnerabilities --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Snyk - File Conversion'
+
+  # #Container Image Scan com Trivy simples - https://data.page/json/csv
+  # - script: |
+  #     trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json mongo
+  #   displayName: 'Trivy - Container Scan'
+
+  # #Container Image Scan com Trivy
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && trivy image -f json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR'
+
+  # #Convert Trivy json file to csv
+  # - script: |
+  #     json2csv -i /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).json -o /home/realroot/azuredevops_output_files/trivyreport/trivy-report-$(build.buildNumber).csv --unwind Vulnerabilities --unwind-blank --flatten-separator "_" --flatten-objects true --flatten-arrays true
+  #   displayName: 'Trivy - File Conversion'
+
+  # #Container Image Scan com regra para quebrar o pipeline - https://pixelrobots.co.uk/2020/02/use-trivy-and-azure-devops-to-scan-container-images-for-vulnerabilities/
+  # - script: |
+  #     docker login devsecopsacn.azurecr.io --username devsecopsacn --password $(apikey01_devsecopssacn_acr)
+  #     docker pull devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 0 --severity MEDIUM,HIGH --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy --exit-code 1 --severity CRITICAL --ignore-unfixed devsecopsacn.azurecr.io/nodegoatapp_web:latest
+  #   displayName: 'Trivy - Container Scan from ACR and rules'
+
+# && zap-cli-v2 -v active-scan -r $(zap_url_scan)
+  # - script: |
+  #     curl --location --request POST 'http://10.80.80.69:8080/api/v2/import-scan/' \
+  #     --header 'Content-Type: application/json' \
+  #     --header 'Authorization: Token 79245c16e436f8056549849040c8ba72f80410eb' \
+  #     --form 'scan_date="2021-08-20"' \
+  #     --form 'minimum_severity="Info"' \
+  #     --form 'active="on"' \
+  #     --form 'scan_type="Clair Scan"' \
+  #     --form 'enviroment="2"' \
+  #     --form 'file=@"/home/realroot/azuredevops_output_files/clairreport/clair-report-$(build.buildNumber).json"' \
+  #     --form 'engagement="82"'
