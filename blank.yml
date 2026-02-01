@@ -1,0 +1,56 @@
+name: Security Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  clone-repository:
+    name: Clone Repository
+    runs-on: self-hosted
+    steps:
+      - name: Clone repository
+        run: |
+          git -c core.sshCommand="ssh -i ~/.ssh/github_key_rsa" clone git@github.com:kamaleon/stacy-api.git
+          ls
+
+  run-horusec:
+    name: Run Security Tests
+    runs-on: self-hosted
+    needs: clone-repository
+    env:
+      REPORT_PATH: /home/arkad/Reports
+      PROJECT_NAME: "stacy-api"
+      BUILD_NUMBER: ${{ github.run_number }}
+      ZAP_TARGET_URL: "https://web-baas.korporate.tech/login"
+    steps:
+      - name: Change Directory
+        working-directory: stacy-api
+        run: pwd
+
+      - name: Run Horusec
+        working-directory: stacy-api
+        run: sudo horusec start -p . -o=json -O=$REPORT_PATH/horusec_report/horusec-report-$PROJECT_NAME-$BUILD_NUMBER.json
+
+      - name: Build with Maven
+        working-directory: stacy-api
+        run: mvn clean install -DskipTests=true || true
+
+      - name: Run Snyk Security Scan
+        working-directory: stacy-api
+        run: snyk test --all-projects --json-file-output=$REPORT_PATH/snyk_report/snyk-report-$PROJECT_NAME-$BUILD_NUMBER.json || true
+
+      - name: Run OWASP ZAP Baseline Scan
+        run: |
+          sudo docker run -v $(pwd):/zap/wrk/:rw --user root -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t $ZAP_TARGET_URL -r owaspzap-report-$PROJECT_NAME-$BUILD_NUMBER.html || true
+          mv owaspzap-report-$PROJECT_NAME-$BUILD_NUMBER.html /home/arkad/Reports/owaspzap_report/
+
+  clean-up:
+    name: Clean Up
+    runs-on: self-hosted
+    needs: run-horusec
+    if: always()
+    steps:
+      - name: Delete cloned repository
+        run: rm -rf ${{ github.workspace }}
